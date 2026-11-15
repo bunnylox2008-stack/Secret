@@ -49,4 +49,47 @@ document.getElementById('go').onclick = async () => {
   document.getElementById('out').value = b64u(payload) + '.' + b64u(sig);
 };
 document.getElementById('copy').onclick = () => { const o = document.getElementById('out'); o.select(); try { navigator.clipboard.writeText(o.value); } catch(e) { document.execCommand('copy'); } };
-</script></body></html>
+</script><h1 style="margin-top:34px">Direkt an Spieler senden (online)</h1>
+<div class="warn">Hier trägst du <b>deinen geheimen Supabase-Schlüssel</b> ein (Project Settings → API Keys → <b>Secret key</b> bzw. <b>service_role</b>). Er wird nur in diesem Browser-Tab gemerkt und nirgends hingeschickt außer an deine Supabase-Datenbank.</div>
+<label>Geheimer Schlüssel (sb_secret_… oder service_role)</label><input id="skey" type="password" autocomplete="off" spellcheck="false">
+<button id="plist">Spielerliste laden</button>
+<div id="players" style="margin-top:10px;font-size:14px"></div>
+<label>Spieler-ID (SM-XXXX-XXXX)</label><input id="gid" autocapitalize="characters" spellcheck="false">
+<label>Was?</label><select id="gtype" style="width:100%;padding:10px;border:2px solid #111;border-radius:10px;font:inherit"><option value="coins">Münzen</option><option value="points">Punkte</option><option value="rebirths">Wiedergeburten</option></select>
+<label>Anzahl</label><input id="gamt" type="number" min="1" value="10">
+<button id="gsend">An Spieler senden</button>
+<div id="gmsg" style="margin-top:10px;font-weight:600"></div>
+<script>
+const SB_URL = 'https://bwtduozzcbrspdmqblae.supabase.co';
+const $g = id => document.getElementById(id);
+try { $g('skey').value = sessionStorage.getItem('sm_skey') || ''; } catch(e) {}
+function sbHeaders() {
+  const k = $g('skey').value.trim(); try { sessionStorage.setItem('sm_skey', k); } catch(e) {}
+  const h = { apikey:k, 'Content-Type':'application/json' };
+  if (!k.startsWith('sb_')) h.Authorization = 'Bearer ' + k;          // alte service_role-Schlüssel sind JWTs
+  return h;
+}
+$g('plist').onclick = async () => {
+  $g('players').textContent = 'Lade ...';
+  try {
+    const r = await fetch(SB_URL + '/rest/v1/profiles?select=username,player_id,updated_at&order=updated_at.desc&limit=100', { headers:sbHeaders() });
+    const d = await r.json(); if (!r.ok) throw new Error(d.message || r.status);
+    $g('players').innerHTML = d.length ? '' : 'Noch keine Spieler.';
+    d.forEach(p => { const row = document.createElement('div'); row.style.cssText = 'padding:6px 8px;border-bottom:1px solid #ddd;cursor:pointer';
+      row.textContent = p.username + '  –  ' + p.player_id; row.onclick = () => { $g('gid').value = p.player_id; }; $g('players').appendChild(row); });
+  } catch(e) { $g('players').textContent = 'Fehler: ' + e.message; }
+};
+$g('gsend').onclick = async () => {
+  const pid = $g('gid').value.trim().toUpperCase(), n = parseInt($g('gamt').value, 10), m = $g('gmsg');
+  if (!/^SM-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(pid) || !(n > 0)) { m.textContent = 'Bitte gültige ID und Anzahl eingeben.'; return; }
+  try {
+    const chk = await fetch(SB_URL + '/rest/v1/profiles?select=username&player_id=eq.' + pid, { headers:sbHeaders() });
+    const who = await chk.json(); if (!chk.ok) throw new Error(who.message || chk.status);
+    if (!who.length) { m.textContent = 'Diese ID gibt es nicht.'; return; }
+    const r = await fetch(SB_URL + '/rest/v1/gifts', { method:'POST', headers:sbHeaders(), body:JSON.stringify({ player_id:pid, type:$g('gtype').value, amount:n }) });
+    if (!r.ok) throw new Error((await r.json()).message || r.status);
+    m.textContent = 'Gesendet an ' + who[0].username + '. Der Spieler bekommt es innerhalb von ca. 30 Sekunden, wenn er online ist.';
+  } catch(e) { m.textContent = 'Fehler: ' + e.message; }
+};
+</script>
+</body></html>

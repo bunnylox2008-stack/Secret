@@ -33,7 +33,7 @@ function parseAmt(s) {
 }
 function fmtBig(d) { return d.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
 function bindPreview(inp, out) { const f = () => { const v = parseAmt(inp.value); out.textContent = v === null ? '⚠ Ungültige Zahl' : '= ' + fmtBig(v); }; inp.addEventListener('input', f); f(); }
-bindPreview(document.getElementById('amt'), document.getElementById('amtv')); bindPreview(document.getElementById('gamt'), document.getElementById('gamtv'));
+bindPreview(document.getElementById('amt'), document.getElementById('amtv'));
 const sha256hex = async s => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)))].map(b => b.toString(16).padStart(2, '0')).join('');
 document.getElementById('go').onclick = async () => {
   const $ = x => document.getElementById(x).value;
@@ -98,6 +98,7 @@ $g('plist').onclick = async () => {
     const info = document.createElement('div'); info.style.cssText = 'margin-top:6px;color:#555'; info.textContent = d.length + ' Spieler. Tippe auf eine Zeile, um die ID unten einzutragen. Die Werte sind der zuletzt hochgeladene Stand (alle ca. 20 Sekunden).'; $g('players').appendChild(info);
   } catch(e) { $g('players').textContent = 'Fehler: ' + e.message; }
 };
+bindPreview($g('gamt'), document.getElementById('gamtv'));
 $g('gsend').onclick = async () => {
   const pid = $g('gid').value.trim().toUpperCase(), n = parseAmt($g('gamt').value), m = $g('gmsg');
   if (!/^SM-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(pid) || !(n !== null && n > 0n)) { m.textContent = 'Bitte gültige ID und Anzahl eingeben.'; return; }

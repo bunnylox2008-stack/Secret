@@ -96,7 +96,7 @@ $g('plist').onclick = async () => {
       tr.onclick = () => { $g('gid').value = p.player_id; $g('gmsg').textContent = 'ID von ' + p.username + ' eingetragen.'; }; tb.appendChild(tr); });
     $g('players').innerHTML = ''; const wrap = document.createElement('div'); wrap.style.overflowX = 'auto'; wrap.appendChild(tb); $g('players').appendChild(wrap);
     const info = document.createElement('div'); info.style.cssText = 'margin-top:6px;color:#555'; info.textContent = d.length + ' Spieler. Tippe auf eine Zeile, um die ID unten einzutragen. Die Werte sind der zuletzt hochgeladene Stand (alle ca. 20 Sekunden).'; $g('players').appendChild(info);
-  } catch(e) { $g('players').textContent = 'Fehler: ' + e.message; }
+  } catch(e) { $g('players').textContent = 'Fehler: ' + e.message + (/load failed|failed to fetch/i.test(e.message) ? ' – Supabase blockiert sb_secret-Schlüssel im Browser. Nimm den alten service_role-Schlüssel (Project Settings → API Keys → Legacy) oder arbeite im SQL-Editor.' : ''); }
 };
 bindPreview($g('gamt'), document.getElementById('gamtv'));
 $g('gsend').onclick = async () => {
@@ -112,5 +112,26 @@ $g('gsend').onclick = async () => {
     m.textContent = 'Gesendet an ' + who[0].username + '. Der Spieler bekommt es innerhalb von ca. 30 Sekunden, wenn er online ist.';
   } catch(e) { m.textContent = 'Fehler: ' + e.message; }
 };
+</script>
+<h1 style="margin-top:34px">Test-Konto</h1>
+<div class="warn">Ein Test-Konto steht <b>nicht in der Rangliste</b> und hat im Spiel alles unendlich (Münzen, Punkte, alle Planeten, Tiere, Kopfteile, keine Mathe-Aufgaben). Es kann ganz normal Freunde hinzufügen. Zuerst einmal <b>test.sql</b> in Supabase ausführen. Den geheimen Schlüssel trägst du oben bei „Direkt an Spieler senden“ ein.</div>
+<label>Spieler-ID des Kontos (SM-XXXX-XXXX)</label><input id="tid" autocapitalize="characters" spellcheck="false">
+<button id="ton">Als Test-Konto markieren</button> <button id="toff" style="background:#eee">Markierung entfernen</button>
+<div id="tmsg" style="margin-top:10px;font-weight:600"></div>
+<script>
+async function setTestFlag(on) {
+  const pid = $g('tid').value.trim().toUpperCase(), m = $g('tmsg');
+  if (!/^SM-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(pid)) { m.textContent = 'Bitte eine gültige ID eingeben.'; return; }
+  try {
+    const r = await fetch(SB_URL + '/rest/v1/profiles?player_id=eq.' + pid, { method:'PATCH', headers:{ ...sbHeaders(), Prefer:'return=representation' }, body:JSON.stringify({ is_test:on }) });
+    const d = await r.json(); if (!r.ok) throw new Error(d.message || r.status);
+    m.textContent = d.length ? (on ? '✔ ' + d[0].username + ' ist jetzt ein Test-Konto. Beim nächsten Anmelden/Laden im Spiel gilt es.' : '✔ ' + d[0].username + ' ist kein Test-Konto mehr.') : 'Diese ID gibt es nicht.';
+  } catch(e) {
+    const sql = "update public.profiles set is_test = " + on + " where upper(player_id) = '" + pid + "';";
+    m.innerHTML = ''; const p = document.createElement('div'); p.textContent = 'Fehler: ' + e.message + '. Supabase erlaubt sb_secret-Schlüssel nicht im Browser. Einfachster Weg: Diesen Befehl im Supabase SQL-Editor ausführen:';
+    const ta = document.createElement('textarea'); ta.readOnly = true; ta.value = sql; ta.style.cssText = 'width:100%;height:70px;margin-top:8px;font:13px monospace'; m.append(p, ta);
+  }
+}
+$g('ton').onclick = () => setTestFlag(true); $g('toff').onclick = () => setTestFlag(false);
 </script>
 </body></html>
